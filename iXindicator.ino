@@ -13,6 +13,11 @@ TFT_eSPI tft = TFT_eSPI();  // Invoke library, pins defined in User_Setup.h
 // Écran
 #define TFT_LEDA_PIN   38 // Broche de contrôle du rétroéclairage
 #define BRIGHNESS 70 //70% de luminosité
+const int progressBarHeight = 4; //TODO
+const int progressBarMargin = 15; //TODO
+const int duration = 5000; //TODO variable de test à supprimer
+int screenHeight = 0; //défini dans setup
+int screenWidth = 0; //défini dans setup
 
 USBCDC USBSerial;
 
@@ -28,7 +33,8 @@ void setup() {
   int brightness = map(BRIGHNESS, 0, 100, 0, 255); // Définit le rétroéclairage à 70%
   analogWrite(TFT_LEDA_PIN, brightness); // Contrôle de la luminosité
   tft.fillScreen(TFT_BLACK); // Premier init de l'écran pour éviter la neige
-
+  screenHeight = tft.height();
+  screenWidth = tft.width();
 
   // Définition du texte
   tft.setTextColor(TFT_WHITE); // Couleur du texte
@@ -60,10 +66,6 @@ void loop() {
     if (strcmp(receivedData, "$START") == 0){
     // Démarre le chronomètre lorsque des données sont disponibles
     startTime = millis();
-
-    // Affichage sur l'écran
-    displayInProgress();
-    delay(1000);
   
     // displayPassed();
     // delay(1000);
@@ -80,8 +82,6 @@ void displayChrono() {
 
   tft.setTextSize(2);
   tft.setTextColor(TFT_BLACK); // Couleur du texte
-  // Taille de l'écran
-  int screenWidth = tft.width();
   
   //texte:
   String message =String(elapsedTime / 1000) + " s";
@@ -98,33 +98,8 @@ void displayChrono() {
   tft.println(message);  
 }
 
-void displayInProgress() {
-  tft.setTextColor(TFT_BLACK); // Couleur du texte
-  // Taille de l'écran
-  int screenWidth = tft.width();
-  int screenHeight = tft.height();
-  
-  //texte:
-  String message = "In Progress";
-  // Taille du texte
-  int textSize = tft.textWidth(message);
-  int textHeight = tft.fontHeight();
-  // Calcul de la position x pour centrer le texte
-  int posX = (screenWidth - textSize) / 2;
-  // Calcul de la position y pour centrer le texte
-  int posY = (screenHeight - textHeight) / 2;
-  tft.setCursor(posX, posY); // Position y au milieu de l'écran
-  tft.fillScreen(tft.color565(255, 255, 0)); // écran vert
-  tft.setCursor(posX, posY); // Position y au milieu de l'écran
-  // Afficher le texte centré
-  tft.println(message);  
-}
-
 void displayPassed() {
   tft.setTextColor(TFT_BLACK); // Couleur du texte
-    // Taille de l'écran
-  int screenWidth = tft.width();
-  int screenHeight = tft.height();
   
   //texte:
   String message = "PASSED";
