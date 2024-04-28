@@ -38,6 +38,9 @@ unsigned long maxMillis =4294967295-1000; // marge de sécurité d'1s (49j- 1s)
 unsigned long previousMillis = 0;
 const unsigned long interval = 1000; // Interval d'actualisation d'une seconde
 
+int mode=0; //définition des modes: 0 écran d'acceuil, 1 Start chrono, 2 timeout/watchdog latché, 3 timeout nb occurences
+bool refreshScreen = true; //permet de rafraichir qu'une seule fois lors d'info fixes
+
 void setup() {
   // Définition de la liaison série
   HWSerial.begin(BAUDRATE);
@@ -52,20 +55,6 @@ void setup() {
   tft.fillScreen(TFT_BLACK); // Premier init de l'écran pour éviter la neige
   screenHeight = tft.height();
   screenWidth = tft.width();
-
-  // Définition du texte
-  tft.setTextColor(TFT_WHITE); // Couleur du texte
-  
-  //Texte d'acceuil
-  tft.setTextSize(1);
-  tft.setCursor(5, 5);
-  tft.println("iXindicator V1.0");
-  tft.setTextSize(3);
-  tft.setCursor(5, 17);
-  tft.println("Waiting");
-  tft.setCursor(5, 45);
-  tft.println("command");
-  tft.setTextSize(2);
 }//fin setup
 
 // fonction d'affichage du temps sous différents format
@@ -145,7 +134,26 @@ void loop() {
 
     if (strcmp(receivedData, "$START") == 0){
       // Démarre le chronomètre lorsque des données sont disponibles
-      startTime = millis(); //démarre le chrono
+      startTime = millis(); //démarre le chrono en récupérant le temps courrant
+      mode=1;
+      refreshScreen=true; //TODO utile?
+    }//fin du if $START
+    if (strcmp(receivedData, "$STOP") == 0){
+      mode=0;
+      refreshScreen=true;
+    }//fin du if $STOP
+    if (strcmp(receivedData, "$PASS") == 0){
+      mode=4;
+      refreshScreen=true;
+    }//fin du if $PASS
+    if (strcmp(receivedData, "$FAIL") == 0){
+      mode=5;
+      refreshScreen=true;
+    }//fin du if $FAIL
+  }//fin du if USBSerial
+
+  switch(mode) {
+    case 1: //chrono qui défille
       //si on n'a pas atteint le nb de jour max affichable on affiche le compteur, sinon on sature à "> 49 jours"
       if(maxdays==false && millis()< maxMillis){
       currentMillis = millis();
@@ -169,12 +177,53 @@ void loop() {
           displayTime(0, 49, true);
           }//fin du else
       }//fin du if
-    // displayPassed();
-    // delay(1000);
-    // displayFailed();
-    // delay(1000);
-    }//fin du if $START
-  }//fin du if USBSerial
+      break;
+    // case 2: //TODO mode 2
+    //   Serial.println("Option 2 selected");
+    //   break;
+    // case 3: //TODO mode 3
+    //   Serial.println("Option 3 selected");
+    //   break;
+      case 4: //mode 4 : PASSED avec l'affichage du chrono arreté
+        //si on n'a pas atteint le nb de jour max affichable on affiche le compteur, sinon on sature à "> 49 jours"
+        if(maxdays==false && millis()< maxMillis){
+        currentMillis = millis();
+        }
+        else{
+          currentMillis=maxMillis;
+          maxdays=true;
+        }
+        // on rafraichit l'écran que toutes les secondes (=interval)
+        if (currentMillis - previousMillis >= interval) {
+          previousMillis = currentMillis;
+          
+          if (startTime==0){
+            displayPassed();
+          }else{
+
+          unsigned long secondsElapsed = (currentMillis - startTime) / 1000;
+          unsigned long days = secondsElapsed / 86400; // Nombre de jours écoulés
+          unsigned long secondsRemainder = secondsElapsed % 86400; // Secondes restantes après le dernier jour complet
+          elapsedTime = secondsRemainder; // Met à jour le temps écoulé en prenant en compte les secondes restantes après le dernier jour complet
+          // si on s'approche de 2^32-1 (i.e la limite encodable alors on sature l'affichage)
+          if (maxdays==false) {
+            // displayTime(elapsedTime, days);
+            displayPassed();
+          }else{
+            // displayTime(0, 49, true);
+            displayPassed();
+            }//fin du else
+          }//fin du else starttime !=0
+        }//fin du if
+        
+      break;
+      case 5:
+        displayFailed();
+      break;
+    default:
+      mode0();
+      break;
+  }//fin du switch
 }//fin du loop
 
 void displayPassed() {
@@ -191,3 +240,36 @@ void displayPassed() {
   // Afficher le texte centré
   tft.println(message);  
 }
+
+void displayFailed() {
+  tft.setTextColor(TFT_BLACK); // Couleur du texte
+  //texte:
+  String message = "FAILED";
+  // Taille du texte
+  int textSize = tft.textWidth(message);
+  int posX = (screenWidth - textSize) / 2;
+
+  tft.fillScreen(tft.color565(255, 0, 0)); // écran rouge
+  tft.setCursor(posX, posY_L3); // Position y au milieu de l'écran
+  // Afficher le texte centré
+  tft.println(message);  
+}
+
+void mode0() {
+  if (refreshScreen==true) {
+    // Définition du texte
+    tft.setTextColor(TFT_WHITE); // Couleur du texte
+    tft.fillScreen(TFT_BLACK); // on efface tout ce qui était affiché avant
+    //Texte d'acceuil
+    tft.setTextSize(1);
+    tft.setCursor(5, 5);
+    tft.println("iXindicator V1.0");
+    tft.setTextSize(3);
+    tft.setCursor(5, 17);
+    tft.println("Waiting");
+    tft.setCursor(5, 45);
+    tft.println("command");
+    tft.setTextSize(2);
+    refreshScreen=false;
+  }//fin du if
+}//fin du mode 0
