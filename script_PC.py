@@ -32,12 +32,25 @@ def main():
 
         while True:
             try:
+                ser.write(b"$PASS\n") # affiche "passed" sans chrono
+                ser.flush()
+                time.sleep(3)  # Attends une seconde avant d'envoyer le prochain message
+
+                ser.write(b"$FAIL\n") # affiche "failed" sans chrono
+                ser.flush()
+                time.sleep(3)  # Attends une seconde avant d'envoyer le prochain message
+
                 # Envoie un message au T-Dongle-S3
                 ser.write(b"$START\n") # mode 1 (affiche in progress et fait défiler un chrono)
                 ser.flush()
                 time.sleep(3)  # Attends une seconde avant d'envoyer le prochain message
 
                 ser.write(b"$PASS\n") # arrete le chrono et affiche "passed"
+                ser.flush()
+                time.sleep(3)  # Attends une seconde avant d'envoyer le prochain message
+
+                # Envoie un message au T-Dongle-S3
+                ser.write(b"$START\n") # mode 1 (affiche in progress et fait défiler un chrono)
                 ser.flush()
                 time.sleep(3)  # Attends une seconde avant d'envoyer le prochain message
 
