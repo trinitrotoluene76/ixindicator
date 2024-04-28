@@ -28,47 +28,75 @@ def main():
         ser = serial.Serial(t_dongle_port, 115200, timeout=1)
         ser.flush()
         
-        time.sleep(1)  # Attends une seconde avant d'envoyer le prochain message
+        time.sleep(1)  
+        print(f"Script de démo.")
 
         while True:
             try:
-                ser.write(b"$PASS\n") # affiche "passed" sans chrono
+                # mode 4: affiche "passed" sans chrono
+                ser.write(b"$PASS\n")
                 ser.flush()
-                time.sleep(3)  # Attends une seconde avant d'envoyer le prochain message
+                time.sleep(3)  
 
-                ser.write(b"$FAIL\n") # affiche "failed" sans chrono
+                # mode 5: affiche "failed" sans chrono
+                ser.write(b"$FAIL\n")
                 ser.flush()
-                time.sleep(3)  # Attends une seconde avant d'envoyer le prochain message
+                time.sleep(3)  
 
-                # Envoie un message au T-Dongle-S3
-                ser.write(b"$START\n") # mode 1 (affiche in progress et fait défiler un chrono)
+                # mode 1 affichage d'un simple chrono
+                # fonction d'affichage du temps sous différents format
+                # hh:mm:ss
+                # dd jours hh:mm
+                # > 49 jours
+                ser.write(b"$START\n")
                 ser.flush()
-                time.sleep(3)  # Attends une seconde avant d'envoyer le prochain message
+                time.sleep(3)  
 
-                ser.write(b"$PASS\n") # arrete le chrono et affiche "passed"
+                # mode 4: affiche "passed" avec chrono à 3s
+                ser.write(b"$PASS\n")
                 ser.flush()
-                time.sleep(3)  # Attends une seconde avant d'envoyer le prochain message
+                time.sleep(3)
+                
+                # mode 5: affiche "failed" avec chrono à 6s
+                ser.write(b"$FAIL\n")
+                ser.flush()
+                time.sleep(3)
 
-                # Envoie un message au T-Dongle-S3
-                ser.write(b"$START\n") # mode 1 (affiche in progress et fait défiler un chrono)
+                # mode 2 (watchdog latché), affiche une progress barre puis "refresh time>x s" sur fond rouge
+                ser.write(b"$START,2,3\n") # mode 2, timeout [1s;2^32-1s] 3s
                 ser.flush()
-                time.sleep(3)  # Attends une seconde avant d'envoyer le prochain message
+                time.sleep(2)  # ok
 
-                ser.write(b"$FAIL\n") # arrete le chrono et affiche "failed"
+                ser.write(b"$START,2,3\n") # mode 2, timeout [1s;2^32-1s] 3s
                 ser.flush()
-                time.sleep(3)  # Attends une seconde avant d'envoyer le prochain message
+                time.sleep(4)  # timeout
 
                 ser.write(b"$STOP\n") # Affiche "waiting command"
                 ser.flush()
-                time.sleep(3)  # Attends une seconde avant d'envoyer le prochain message
-
-                ser.write(b"$START,2,10\n") # mode 2 (watchdog latché), timeout 10s
+                time.sleep(3)  
+                
+                # mode 3 watchdog non latché: affiche une progress barre et "nb timeouts:xx" sur fond noir
+                # nécessite de rafraichir la barre avec de nouvelles commandes START, sinon on reste dans le mode.
+                # Pour sortir du mode, il faut débrancher ou envoyer une commande STOP
+                ser.write(b"$START,3,2\n") # mode 3, timeout [1s;2^32-1s] 2s
                 ser.flush()
-                time.sleep(3)  # Attends une seconde avant d'envoyer le prochain message
+                time.sleep(1)  # ok
 
-                ser.write(b"$START,3,10\n") # mode 3 (watchdog non latché), timeout 10s
+                ser.write(b"$START,3,2\n") # mode 3, timeout [1s;2^32-1s] 2s
                 ser.flush()
-                time.sleep(3)  # Attends une seconde avant d'envoyer le prochain message
+                time.sleep(4)  # timeout
+
+                ser.write(b"$START,3,2\n") # mode 3, timeout [1s;2^32-1s] 2s
+                ser.flush()
+                time.sleep(3)  # timeout
+
+                ser.write(b"$START,3,2\n") # mode 3, timeout [1s;2^32-1s] 2s
+                ser.flush()
+                time.sleep(1)  # ok
+
+                ser.write(b"$STOP\n") # Affiche "waiting command" (On est obligé de cloturer par un stop pour éviter d'avoir une prochaine commande avec startime>0)
+                ser.flush()
+                time.sleep(1)
 
             except serial.SerialException:
                 print("Déconnexion du T-Dongle-S3.")
