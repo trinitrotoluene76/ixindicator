@@ -62,6 +62,8 @@ void setup() {
 // dd jours hh:mm
 // > 49 jours
 void displayTime(unsigned long elapsed, unsigned long days, bool flag = false) {
+  tft.setTextColor(TFT_WHITE); // Couleur du texte
+  tft.fillScreen(TFT_BLACK); // Efface l'écran
   unsigned long seconds = elapsed;
   unsigned long minutes = seconds / 60;
   unsigned long hours = minutes / 60;
@@ -73,9 +75,7 @@ void displayTime(unsigned long elapsed, unsigned long days, bool flag = false) {
       unsigned long secondsRemainder = seconds % 60;
       unsigned long minutesRemainder = minutes % 60;
       unsigned long hoursRemainder = hours % 24;
-      tft.fillScreen(TFT_BLACK); // Efface l'écran
-      tft.setCursor(0, 0);
-
+      
       // Taille du texte
       textSize = tft.textWidth(String("00:00:00"));
       
@@ -98,8 +98,6 @@ void displayTime(unsigned long elapsed, unsigned long days, bool flag = false) {
       posX = (screenWidth - textSize) / 2;
       // Calcul de la position y pour centrer le texte
       tft.setCursor(posX, posY_L1);
-
-      tft.fillScreen(TFT_BLACK); // Efface l'écran
       tft.printf("%03lu jours", days);
 
       // Taille du texte
@@ -111,7 +109,6 @@ void displayTime(unsigned long elapsed, unsigned long days, bool flag = false) {
     }
   }
   else{
-    tft.fillScreen(TFT_BLACK);
     //texte:
     String message =String("> 49 jours");
     // Taille du texte
@@ -122,6 +119,171 @@ void displayTime(unsigned long elapsed, unsigned long days, bool flag = false) {
     tft.println(message);
   }
 }//fin diplayTime
+
+//Affiche soit "passed" soit "passed + chrono sous différentes formes cf displayTime"
+void displayPassed(unsigned long elapsed=0, unsigned long days=0, bool flag = false) {
+  
+  if (refreshScreen==true) {
+    unsigned long seconds = elapsed;
+    unsigned long minutes = seconds / 60;
+    unsigned long hours = minutes / 60;
+    int textSize=0;
+    int posX =0;
+    String message =String("");
+    tft.fillScreen(tft.color565(0, 255, 0)); // écran vert
+    tft.setTextColor(TFT_BLACK); // Couleur du texte
+
+    if (flag==false){
+      if (days == 0) {
+        if (elapsed>0){
+          // Affiche le temps au format "hh:mm:ss"
+          unsigned long secondsRemainder = seconds % 60;
+          unsigned long minutesRemainder = minutes % 60;
+          unsigned long hoursRemainder = hours % 24;
+          
+          // Taille du texte
+          textSize = tft.textWidth(String("00:00:00"));
+          
+          // Calcul de la position x pour centrer le texte
+          posX = (screenWidth - textSize) / 2;
+          tft.setCursor(posX, posY_L2); // Position y au milieu de l'écran
+
+          // Afficher le texte centré
+          tft.printf("%02lu:%02lu:%02lu", hoursRemainder, minutesRemainder, secondsRemainder);
+        }//fin du if elapse time >0
+      } else {
+        // Affiche le temps au format "jj jours hh:mm"
+        unsigned long hoursRemainder = hours % 24;
+        unsigned long minutesRemainder = minutes % 60;
+        // Taille du texte
+        textSize = tft.textWidth(String("00 jours"));
+        // Calcul de la position x pour centrer le texte
+        posX = (screenWidth - textSize) / 2;
+        // Calcul de la position y pour centrer le texte
+        tft.setCursor(posX, posY_L1);
+        tft.printf("%03lu jours", days);
+        // Taille du texte
+        textSize = tft.textWidth(String("00:00"));
+        // Calcul de la position x pour centrer le texte
+        posX = (screenWidth - textSize) / 2;
+        tft.setCursor(posX, posY_L2);
+        tft.printf("%02lu:%02lu", hoursRemainder, minutesRemainder);
+      }
+    }
+    else{
+      //texte:
+      message =String("> 49 jours");
+      // Taille du texte
+      textSize = tft.textWidth(message);
+      // Calcul de la position x pour centrer le texte
+      posX = (screenWidth - textSize) / 2;
+      tft.setCursor(posX, posY_L1);
+      tft.println(message);
+    }
+    //texte:
+    message = "PASSED";
+    // Taille du texte
+    textSize = tft.textWidth(message);
+    posX = (screenWidth - textSize) / 2;
+    tft.setCursor(posX, posY_L3); // Position y au milieu de l'écran
+    // Afficher le texte centré
+    tft.println(message);
+    refreshScreen=false;
+  }//fin du if refreshScreen==true
+}//fin du displayPassed
+
+//Affiche soit "failed" soit "failed + chrono sous différentes formes cf displayTime"
+void displayFailed(unsigned long elapsed=0, unsigned long days=0, bool flag = false) {
+  
+  if (refreshScreen==true) {
+    unsigned long seconds = elapsed;
+    unsigned long minutes = seconds / 60;
+    unsigned long hours = minutes / 60;
+    int textSize=0;
+    int posX =0;
+    String message =String("");
+    tft.fillScreen(tft.color565(255, 0, 0)); // écran rouge
+    tft.setTextColor(TFT_BLACK); // Couleur du texte
+
+    if (flag==false){
+      if (days == 0) {
+        if (elapsed>0){
+          // Affiche le temps au format "hh:mm:ss"
+          unsigned long secondsRemainder = seconds % 60;
+          unsigned long minutesRemainder = minutes % 60;
+          unsigned long hoursRemainder = hours % 24;
+          
+          // Taille du texte
+          textSize = tft.textWidth(String("00:00:00"));
+          
+          // Calcul de la position x pour centrer le texte
+          posX = (screenWidth - textSize) / 2;
+          tft.setCursor(posX, posY_L2); // Position y au milieu de l'écran
+
+          // Afficher le texte centré
+          tft.printf("%02lu:%02lu:%02lu", hoursRemainder, minutesRemainder, secondsRemainder);
+        }//fin du if elapse time >0
+      } else {
+        // Affiche le temps au format "jj jours hh:mm"
+        unsigned long hoursRemainder = hours % 24;
+        unsigned long minutesRemainder = minutes % 60;
+        // Taille du texte
+        textSize = tft.textWidth(String("00 jours"));
+        // Calcul de la position x pour centrer le texte
+        posX = (screenWidth - textSize) / 2;
+        // Calcul de la position y pour centrer le texte
+        tft.setCursor(posX, posY_L1);
+        tft.printf("%03lu jours", days);
+        // Taille du texte
+        textSize = tft.textWidth(String("00:00"));
+        // Calcul de la position x pour centrer le texte
+        posX = (screenWidth - textSize) / 2;
+        tft.setCursor(posX, posY_L2);
+        tft.printf("%02lu:%02lu", hoursRemainder, minutesRemainder);
+      }
+    }
+    else{
+      //texte:
+      message =String("> 49 jours");
+      // Taille du texte
+      textSize = tft.textWidth(message);
+      // Calcul de la position x pour centrer le texte
+      posX = (screenWidth - textSize) / 2;
+      tft.setCursor(posX, posY_L1);
+      tft.println(message);
+    }
+    //texte:
+    message = "FAILED";
+    // Taille du texte
+    textSize = tft.textWidth(message);
+    posX = (screenWidth - textSize) / 2;
+    tft.setCursor(posX, posY_L3); // Position y au milieu de l'écran
+    // Afficher le texte centré
+    tft.println(message);
+    refreshScreen=false;
+  }//fin du if refreshScreen==true
+}//fin du displayFailed
+
+//mode d'accueil waiting command
+void mode0() {
+  if (refreshScreen==true) {
+    // Définition du texte
+    tft.setTextColor(TFT_WHITE); // Couleur du texte
+    tft.fillScreen(TFT_BLACK); // on efface tout ce qui était affiché avant
+    //Texte d'acceuil
+    tft.setTextSize(1);
+    tft.setCursor(5, 5);
+    tft.println("iXindicator V1.0");
+    tft.setTextSize(3);
+    tft.setCursor(5, 17);
+    tft.println("Waiting");
+    tft.setCursor(5, 45);
+    tft.println("command");
+    tft.setTextSize(2);
+    startTime=0; // on réinitialise le chrono
+    refreshScreen=false;
+  }//fin du if
+}//fin du mode 0
 
 void loop() {
   // Lecture des données sur la liaison série
@@ -136,7 +298,6 @@ void loop() {
       // Démarre le chronomètre lorsque des données sont disponibles
       startTime = millis(); //démarre le chrono en récupérant le temps courrant
       mode=1;
-      refreshScreen=true; //TODO utile?
     }//fin du if $START
     if (strcmp(receivedData, "$STOP") == 0){
       mode=0;
@@ -165,7 +326,6 @@ void loop() {
       // on rafraichit l'écran que toutes les secondes (=interval)
       if (currentMillis - previousMillis >= interval) {
         previousMillis = currentMillis;
-        
         unsigned long secondsElapsed = (currentMillis - startTime) / 1000;
         unsigned long days = secondsElapsed / 86400; // Nombre de jours écoulés
         unsigned long secondsRemainder = secondsElapsed % 86400; // Secondes restantes après le dernier jour complet
@@ -193,32 +353,46 @@ void loop() {
           currentMillis=maxMillis;
           maxdays=true;
         }
-        // on rafraichit l'écran que toutes les secondes (=interval)
-        if (currentMillis - previousMillis >= interval) {
-          previousMillis = currentMillis;
-          
-          if (startTime==0){
-            displayPassed();
-          }else{
-
-          unsigned long secondsElapsed = (currentMillis - startTime) / 1000;
-          unsigned long days = secondsElapsed / 86400; // Nombre de jours écoulés
-          unsigned long secondsRemainder = secondsElapsed % 86400; // Secondes restantes après le dernier jour complet
-          elapsedTime = secondsRemainder; // Met à jour le temps écoulé en prenant en compte les secondes restantes après le dernier jour complet
-          // si on s'approche de 2^32-1 (i.e la limite encodable alors on sature l'affichage)
-          if (maxdays==false) {
-            // displayTime(elapsedTime, days);
-            displayPassed();
-          }else{
-            // displayTime(0, 49, true);
-            displayPassed();
-            }//fin du else
-          }//fin du else starttime !=0
-        }//fin du if
-        
+        //si on est dans le mode sans chrono (pas d'appel avec $START)
+        if (startTime==0){
+          displayPassed(); // on affiche uniquement "PASSED" sans chrono
+        }else{
+        unsigned long secondsElapsed = (currentMillis - startTime) / 1000;
+        unsigned long days = secondsElapsed / 86400; // Nombre de jours écoulés
+        unsigned long secondsRemainder = secondsElapsed % 86400; // Secondes restantes après le dernier jour complet
+        elapsedTime = secondsRemainder; // Met à jour le temps écoulé en prenant en compte les secondes restantes après le dernier jour complet
+        // si on s'approche de 2^32-1 (i.e la limite encodable alors on sature l'affichage)
+        if (maxdays==false) {
+          displayPassed(elapsedTime, days);
+        }else{
+          displayPassed(0, 49, true); //chrono à 0, 49 jours, maxdays=true
+          }//fin du else
+        }//fin du else starttime !=0
       break;
-      case 5:
-        displayFailed();
+      case 5: //mode 4 : FAILED avec l'affichage du chrono arreté
+        //si on n'a pas atteint le nb de jour max affichable on affiche le compteur, sinon on sature à "> 49 jours"
+        if(maxdays==false && millis()< maxMillis){
+        currentMillis = millis();
+        }
+        else{
+          currentMillis=maxMillis;
+          maxdays=true;
+        }
+        //si on est dans le mode sans chrono (pas d'appel avec $START)
+        if (startTime==0){
+          displayFailed(); // on affiche uniquement "PASSED" sans chrono
+        }else{
+        unsigned long secondsElapsed = (currentMillis - startTime) / 1000;
+        unsigned long days = secondsElapsed / 86400; // Nombre de jours écoulés
+        unsigned long secondsRemainder = secondsElapsed % 86400; // Secondes restantes après le dernier jour complet
+        elapsedTime = secondsRemainder; // Met à jour le temps écoulé en prenant en compte les secondes restantes après le dernier jour complet
+        // si on s'approche de 2^32-1 (i.e la limite encodable alors on sature l'affichage)
+        if (maxdays==false) {
+          displayFailed(elapsedTime, days);
+        }else{
+          displayFailed(0, 49, true); //chrono à 0, 49 jours, maxdays=true
+          }//fin du else
+        }//fin du else starttime !=0
       break;
     default:
       mode0();
@@ -226,50 +400,3 @@ void loop() {
   }//fin du switch
 }//fin du loop
 
-void displayPassed() {
-  tft.setTextColor(TFT_BLACK); // Couleur du texte
-  
-  //texte:
-  String message = "PASSED";
-  // Taille du texte
-  int textSize = tft.textWidth(message);
-  int posX = (screenWidth - textSize) / 2;
-
-  tft.fillScreen(tft.color565(0, 255, 0)); // écran vert
-  tft.setCursor(posX, posY_L3); // Position y au milieu de l'écran
-  // Afficher le texte centré
-  tft.println(message);  
-}
-
-void displayFailed() {
-  tft.setTextColor(TFT_BLACK); // Couleur du texte
-  //texte:
-  String message = "FAILED";
-  // Taille du texte
-  int textSize = tft.textWidth(message);
-  int posX = (screenWidth - textSize) / 2;
-
-  tft.fillScreen(tft.color565(255, 0, 0)); // écran rouge
-  tft.setCursor(posX, posY_L3); // Position y au milieu de l'écran
-  // Afficher le texte centré
-  tft.println(message);  
-}
-
-void mode0() {
-  if (refreshScreen==true) {
-    // Définition du texte
-    tft.setTextColor(TFT_WHITE); // Couleur du texte
-    tft.fillScreen(TFT_BLACK); // on efface tout ce qui était affiché avant
-    //Texte d'acceuil
-    tft.setTextSize(1);
-    tft.setCursor(5, 5);
-    tft.println("iXindicator V1.0");
-    tft.setTextSize(3);
-    tft.setCursor(5, 17);
-    tft.println("Waiting");
-    tft.setCursor(5, 45);
-    tft.println("command");
-    tft.setTextSize(2);
-    refreshScreen=false;
-  }//fin du if
-}//fin du mode 0
