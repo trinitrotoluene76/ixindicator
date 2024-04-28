@@ -18,7 +18,8 @@ TFT_eSPI tft = TFT_eSPI();  // Invoke library, pins defined in User_Setup.h
 #define BRIGHNESS 70 //70% de luminosité
 const int progressBarHeight = 4;
 const int progressBarMargin = 15;
-unsigned long timeout; // Déclaration de la variable timeout
+unsigned long timeoutThreshold; // Déclaration de la variable timeout Threshold
+bool timeout=false;//dans le mode 2 si on atteint le timeout on y reste
 
 const int posY_L1=10;
 const int posY_L2=30;
@@ -287,22 +288,41 @@ void mode0() {
 //mode Start latché: affiche une progress barre puis "refresh time>x s at hh:mm:ss" sur fond rouge
 //nécessite de rafraichir la barre avec de nouvelles commandes START, sinon on reste dans le mode.
 //Pour sortir du mode, il faut débrancher ou envoyer une commande STOP
-void mode2(unsigned long timeout) {  
+void mode2(unsigned long timeoutThreshold) {  
   unsigned long currentTime = millis();
   unsigned long elapsedTime = currentTime - startTime;
+  int textSize=0;
+  int posX =0;
 
-  if (elapsedTime <= timeout) {
-    int progressBarWidth = map(elapsedTime, 0, timeout, 0, screenWidth - 2 * progressBarMargin);
+  if (elapsedTime <= timeoutThreshold) {
+    int progressBarWidth = map(elapsedTime, 0, timeoutThreshold, 0, screenWidth - 2 * progressBarMargin);
     
     // Dessine la barre de progression
     tft.fillRect(screenWidth - progressBarMargin - progressBarWidth, (screenHeight - progressBarHeight) *2/ 3, progressBarWidth, progressBarHeight, 0x7BEF);
   } else {
-    // La progression est terminée
-    //TODO afficher "refresh time>x s at hh:mm:ss" sur fond rouge
-    tft.fillScreen(tft.color565(255, 0, 0)); // écran rouge
-    tft.setTextColor(TFT_BLACK); // Couleur du texte
-    startTime=0; // on réinitialise le chrono
-  }
+    if(refreshScreen==true && timeout==false){
+      // La progression est terminée
+      tft.fillScreen(tft.color565(255, 0, 0)); // écran rouge
+      tft.setTextColor(TFT_BLACK); // Couleur du texte
+      String message="refresh time";
+      // Taille du texte
+      textSize = tft.textWidth(message);
+      // Calcul de la position x pour centrer le texte
+      posX = (screenWidth - textSize) / 2;
+      tft.setCursor(posX, posY_L1); // Position y au milieu de l'écran
+      tft.println(message);
+      message="123s at:";
+      // Taille du texte
+      textSize = tft.textWidth(message);
+      // Calcul de la position x pour centrer le texte
+      posX = (screenWidth - textSize) / 2;
+      tft.setCursor(posX, posY_L2); // Position y au milieu de l'écran
+      tft.printf(">%02lus", timeoutThreshold/1000);
+      startTime=0; // on réinitialise le chrono
+      refreshScreen=false;
+      timeout=true;
+    }//fin du if refresh
+  }//fin du else
 }//fin du mode2
 void loop() {
   // Lecture des données sur la liaison série
@@ -318,11 +338,12 @@ void loop() {
     if (startPtr != NULL) {
       int m; // mode
       // Analyse de la sous-chaîne à partir de "$START" (m=mode 2 ou 3. Timeout (s))
-      int result = sscanf(startPtr, "$START,%d,%lu", &m, &timeout);
+      int result = sscanf(startPtr, "$START,%d,%lu", &m, &timeoutThreshold);
       //si le paterne match on extrait les données
-      if (result == 2) {
+      if (result == 2 && timeout==false) {
+        refreshScreen=true;// on arme le refresh (il passe à false si timeout)
         startTime = millis(); // Démarre le chronomètre
-        timeout=timeout*1000; //conversion du timeout en ms
+        timeoutThreshold=timeoutThreshold*1000; //conversion du timeout en ms
         tft.fillScreen(TFT_BLACK); // on efface tout ce qui était affiché avant
         // on initialise la barre en blanc
         tft.fillRect(progressBarMargin, (screenHeight - progressBarHeight) *2/ 3, screenWidth - progressBarMargin*2, progressBarHeight, TFT_WHITE);
@@ -336,7 +357,7 @@ void loop() {
     }//fin du if startPtr
 
     //Si c'est juste $START (chrono uniquement)
-    if (strcmp(receivedData, "$START") == 0){
+    if ((strcmp(receivedData, "$START") == 0) && timeout==false){
           // Démarre le chronomètre lorsque des données sont disponibles
       startTime = millis(); //démarre le chrono en récupérant le temps courrant
       mode=1;
@@ -344,12 +365,13 @@ void loop() {
     if (strcmp(receivedData, "$STOP") == 0){
       mode=0;
       refreshScreen=true;
+      timeout=false;
     }//fin du if $STOP
-    if (strcmp(receivedData, "$PASS") == 0){
+    if ((strcmp(receivedData, "$PASS") == 0) && timeout==false){
       mode=4;
       refreshScreen=true;
     }//fin du if $PASS
-    if (strcmp(receivedData, "$FAIL") == 0){
+    if ((strcmp(receivedData, "$FAIL") == 0) && timeout==false){
       mode=5;
       refreshScreen=true;
     }//fin du if $FAIL
@@ -381,10 +403,10 @@ void loop() {
       }//fin du if
       break;
     case 2:
-      mode2(timeout);
+      mode2(timeoutThreshold);
       break;
     case 3:
-      // mode3(timeout);//TODO
+      // mode3(timeoutThreshold);//TODO
       break;
     case 4: //mode 4 : PASSED avec l'affichage du chrono arreté
       //si on n'a pas atteint le nb de jour max affichable on affiche le compteur, sinon on sature à "> 49 jours"
