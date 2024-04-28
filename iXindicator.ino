@@ -16,9 +16,10 @@ TFT_eSPI tft = TFT_eSPI();  // Invoke library, pins defined in User_Setup.h
 // Écran
 #define TFT_LEDA_PIN   38 // Broche de contrôle du rétroéclairage
 #define BRIGHNESS 70 //70% de luminosité
-const int progressBarHeight = 4; //TODO
-const int progressBarMargin = 15; //TODO
-const int duration = 5000; //TODO variable de test à supprimer
+const int progressBarHeight = 4;
+const int progressBarMargin = 15;
+unsigned long timeout; // Déclaration de la variable timeout
+
 const int posY_L1=10;
 const int posY_L2=30;
 const int posY_L3=50;
@@ -280,11 +281,29 @@ void mode0() {
     tft.setCursor(5, 45);
     tft.println("command");
     tft.setTextSize(2);
-    startTime=0; // on réinitialise le chrono
-    refreshScreen=false;
   }//fin du if
 }//fin du mode 0
 
+//mode Start latché: affiche une progress barre puis "refresh time>x s at hh:mm:ss" sur fond rouge
+//nécessite de rafraichir la barre avec de nouvelles commandes START, sinon on reste dans le mode.
+//Pour sortir du mode, il faut débrancher ou envoyer une commande STOP
+void mode2(unsigned long timeout) {  
+  unsigned long currentTime = millis();
+  unsigned long elapsedTime = currentTime - startTime;
+
+  if (elapsedTime <= timeout) {
+    int progressBarWidth = map(elapsedTime, 0, timeout, 0, screenWidth - 2 * progressBarMargin);
+    
+    // Dessine la barre de progression
+    tft.fillRect(screenWidth - progressBarMargin - progressBarWidth, (screenHeight - progressBarHeight) *2/ 3, progressBarWidth, progressBarHeight, 0x7BEF);
+  } else {
+    // La progression est terminée
+    //TODO afficher "refresh time>x s at hh:mm:ss" sur fond rouge
+    tft.fillScreen(tft.color565(255, 0, 0)); // écran rouge
+    tft.setTextColor(TFT_BLACK); // Couleur du texte
+    startTime=0; // on réinitialise le chrono
+  }
+}//fin du mode2
 void loop() {
   // Lecture des données sur la liaison série
   if (USBSerial.available() > 0) { // Vérifie s'il y a des données disponibles à lire sur l'UART0
@@ -294,8 +313,31 @@ void loop() {
     // USBSerial.print("Données reçues : ");
     // USBSerial.println(receivedData); // Affiche les données reçues
 
+    // Recherche de la sous-chaîne "$START pour les modes 2 et 3"
+    char *startPtr = strstr(receivedData, "$START,");
+    if (startPtr != NULL) {
+      int m; // mode
+      // Analyse de la sous-chaîne à partir de "$START" (m=mode 2 ou 3. Timeout (s))
+      int result = sscanf(startPtr, "$START,%d,%lu", &m, &timeout);
+      //si le paterne match on extrait les données
+      if (result == 2) {
+        startTime = millis(); // Démarre le chronomètre
+        timeout=timeout*1000; //conversion du timeout en ms
+        tft.fillScreen(TFT_BLACK); // on efface tout ce qui était affiché avant
+        // on initialise la barre en blanc
+        tft.fillRect(progressBarMargin, (screenHeight - progressBarHeight) *2/ 3, screenWidth - progressBarMargin*2, progressBarHeight, TFT_WHITE);
+        if(m==2){
+          mode=2;
+        }
+        if(m==3){
+          mode=3;
+        }
+      }//fin du if result==2
+    }//fin du if startPtr
+
+    //Si c'est juste $START (chrono uniquement)
     if (strcmp(receivedData, "$START") == 0){
-      // Démarre le chronomètre lorsque des données sont disponibles
+          // Démarre le chronomètre lorsque des données sont disponibles
       startTime = millis(); //démarre le chrono en récupérant le temps courrant
       mode=1;
     }//fin du if $START
@@ -338,64 +380,66 @@ void loop() {
           }//fin du else
       }//fin du if
       break;
-    // case 2: //TODO mode 2
-    //   Serial.println("Option 2 selected");
-    //   break;
-    // case 3: //TODO mode 3
-    //   Serial.println("Option 3 selected");
-    //   break;
-      case 4: //mode 4 : PASSED avec l'affichage du chrono arreté
-        //si on n'a pas atteint le nb de jour max affichable on affiche le compteur, sinon on sature à "> 49 jours"
-        if(maxdays==false && millis()< maxMillis){
-        currentMillis = millis();
-        }
-        else{
-          currentMillis=maxMillis;
-          maxdays=true;
-        }
-        //si on est dans le mode sans chrono (pas d'appel avec $START)
-        if (startTime==0){
-          displayPassed(); // on affiche uniquement "PASSED" sans chrono
-        }else{
-        unsigned long secondsElapsed = (currentMillis - startTime) / 1000;
-        unsigned long days = secondsElapsed / 86400; // Nombre de jours écoulés
-        unsigned long secondsRemainder = secondsElapsed % 86400; // Secondes restantes après le dernier jour complet
-        elapsedTime = secondsRemainder; // Met à jour le temps écoulé en prenant en compte les secondes restantes après le dernier jour complet
-        // si on s'approche de 2^32-1 (i.e la limite encodable alors on sature l'affichage)
-        if (maxdays==false) {
-          displayPassed(elapsedTime, days);
-        }else{
-          displayPassed(0, 49, true); //chrono à 0, 49 jours, maxdays=true
-          }//fin du else
-        }//fin du else starttime !=0
+    case 2:
+      mode2(timeout);
       break;
-      case 5: //mode 4 : FAILED avec l'affichage du chrono arreté
-        //si on n'a pas atteint le nb de jour max affichable on affiche le compteur, sinon on sature à "> 49 jours"
-        if(maxdays==false && millis()< maxMillis){
-        currentMillis = millis();
-        }
-        else{
-          currentMillis=maxMillis;
-          maxdays=true;
-        }
-        //si on est dans le mode sans chrono (pas d'appel avec $START)
-        if (startTime==0){
-          displayFailed(); // on affiche uniquement "PASSED" sans chrono
-        }else{
-        unsigned long secondsElapsed = (currentMillis - startTime) / 1000;
-        unsigned long days = secondsElapsed / 86400; // Nombre de jours écoulés
-        unsigned long secondsRemainder = secondsElapsed % 86400; // Secondes restantes après le dernier jour complet
-        elapsedTime = secondsRemainder; // Met à jour le temps écoulé en prenant en compte les secondes restantes après le dernier jour complet
-        // si on s'approche de 2^32-1 (i.e la limite encodable alors on sature l'affichage)
-        if (maxdays==false) {
-          displayFailed(elapsedTime, days);
-        }else{
-          displayFailed(0, 49, true); //chrono à 0, 49 jours, maxdays=true
-          }//fin du else
-        }//fin du else starttime !=0
+    case 3:
+      // mode3(timeout);//TODO
+      break;
+    case 4: //mode 4 : PASSED avec l'affichage du chrono arreté
+      //si on n'a pas atteint le nb de jour max affichable on affiche le compteur, sinon on sature à "> 49 jours"
+      if(maxdays==false && millis()< maxMillis){
+      currentMillis = millis();
+      }
+      else{
+        currentMillis=maxMillis;
+        maxdays=true;
+      }
+      //si on est dans le mode sans chrono (pas d'appel avec $START)
+      if (startTime==0){
+        displayPassed(); // on affiche uniquement "PASSED" sans chrono
+      }else{
+      unsigned long secondsElapsed = (currentMillis - startTime) / 1000;
+      unsigned long days = secondsElapsed / 86400; // Nombre de jours écoulés
+      unsigned long secondsRemainder = secondsElapsed % 86400; // Secondes restantes après le dernier jour complet
+      elapsedTime = secondsRemainder; // Met à jour le temps écoulé en prenant en compte les secondes restantes après le dernier jour complet
+      // si on s'approche de 2^32-1 (i.e la limite encodable alors on sature l'affichage)
+      if (maxdays==false) {
+        displayPassed(elapsedTime, days);
+      }else{
+        displayPassed(0, 49, true); //chrono à 0, 49 jours, maxdays=true
+        }//fin du else
+      }//fin du else starttime !=0
+      break;
+    case 5: //mode 4 : FAILED avec l'affichage du chrono arreté
+      //si on n'a pas atteint le nb de jour max affichable on affiche le compteur, sinon on sature à "> 49 jours"
+      if(maxdays==false && millis()< maxMillis){
+      currentMillis = millis();
+      }
+      else{
+        currentMillis=maxMillis;
+        maxdays=true;
+      }
+      //si on est dans le mode sans chrono (pas d'appel avec $START)
+      if (startTime==0){
+        displayFailed(); // on affiche uniquement "PASSED" sans chrono
+      }else{
+      unsigned long secondsElapsed = (currentMillis - startTime) / 1000;
+      unsigned long days = secondsElapsed / 86400; // Nombre de jours écoulés
+      unsigned long secondsRemainder = secondsElapsed % 86400; // Secondes restantes après le dernier jour complet
+      elapsedTime = secondsRemainder; // Met à jour le temps écoulé en prenant en compte les secondes restantes après le dernier jour complet
+      // si on s'approche de 2^32-1 (i.e la limite encodable alors on sature l'affichage)
+      if (maxdays==false) {
+        displayFailed(elapsedTime, days);
+      }else{
+        displayFailed(0, 49, true); //chrono à 0, 49 jours, maxdays=true
+        }//fin du else
+      }//fin du else starttime !=0
       break;
     default:
       mode0();
+      startTime=0; // on réinitialise le chrono
+      refreshScreen=false;
       break;
   }//fin du switch
 }//fin du loop
