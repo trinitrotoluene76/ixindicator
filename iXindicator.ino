@@ -20,6 +20,7 @@ const int progressBarHeight = 4;
 const int progressBarMargin = 15;
 unsigned long timeoutThreshold; // Déclaration de la variable timeout Threshold
 bool timeout=false;//dans le mode 2 si on atteint le timeout on y reste
+int nbTimeout=0; //pour le mode 3
 
 const int posY_L1=10;
 const int posY_L2=30;
@@ -110,7 +111,7 @@ void displayTime(unsigned long elapsed, unsigned long days, bool flag = false) {
       tft.printf("%02lu:%02lu", hoursRemainder, minutesRemainder);
     }
   }
-  else{
+  else{ //flag=true
     //texte:
     String message =String("> 49 jours");
     // Taille du texte
@@ -285,7 +286,7 @@ void mode0() {
   }//fin du if
 }//fin du mode 0
 
-//mode Start latché: affiche une progress barre puis "refresh time>x s at hh:mm:ss" sur fond rouge
+//mode Start latché: affiche une progress barre puis "refresh time>x s" sur fond rouge
 //nécessite de rafraichir la barre avec de nouvelles commandes START, sinon on reste dans le mode.
 //Pour sortir du mode, il faut débrancher ou envoyer une commande STOP
 void mode2(unsigned long timeoutThreshold) {  
@@ -311,7 +312,7 @@ void mode2(unsigned long timeoutThreshold) {
       posX = (screenWidth - textSize) / 2;
       tft.setCursor(posX, posY_L1); // Position y au milieu de l'écran
       tft.println(message);
-      message="123s at:";
+      message=">123s";
       // Taille du texte
       textSize = tft.textWidth(message);
       // Calcul de la position x pour centrer le texte
@@ -324,6 +325,55 @@ void mode2(unsigned long timeoutThreshold) {
     }//fin du if refresh
   }//fin du else
 }//fin du mode2
+
+//mode Start non latché: affiche une progress barre et "nb timeouts:xx" sur fond noir
+//nécessite de rafraichir la barre avec de nouvelles commandes START, sinon on reste dans le mode.
+//Pour sortir du mode, il faut débrancher ou envoyer une commande STOP
+void mode3(unsigned long timeoutThreshold) {  
+  unsigned long currentTime = millis();
+  unsigned long elapsedTime = currentTime - startTime;
+  int textSize=0;
+  int posX =0;
+  tft.setTextColor(TFT_WHITE); // Couleur du texte
+  String message="";
+  
+  if (elapsedTime <= timeoutThreshold) {
+    int progressBarWidth = map(elapsedTime, 0, timeoutThreshold, 0, screenWidth - 2 * progressBarMargin);
+    String message="Nb timeouts:";
+    // Taille du texte
+    textSize = tft.textWidth(message);
+    // Calcul de la position x pour centrer le texte
+    posX = (screenWidth - textSize) / 2;
+    tft.setCursor(posX, posY_L1); // Position y au milieu de l'écran
+    tft.println(message);
+    
+    message="1234";
+    // Taille du texte
+    textSize = tft.textWidth(message);
+    // Calcul de la position x pour centrer le texte
+    posX = (screenWidth - textSize) / 2;
+    tft.setCursor(posX, posY_L2); // Position y au milieu de l'écran
+    tft.printf("%d", nbTimeout);
+    // Dessine la barre de progression
+    tft.fillRect(screenWidth - progressBarMargin - progressBarWidth, (screenHeight - progressBarHeight) *2/ 3, progressBarWidth, progressBarHeight, 0x7BEF);
+  } else {
+    if(refreshScreen==true){
+      // La progression est terminée
+      nbTimeout++;
+      message="1234";
+      // Taille du texte
+      textSize = tft.textWidth(message);
+      // Calcul de la position x pour centrer le texte
+      posX = (screenWidth - textSize) / 2;
+      tft.setCursor(posX, posY_L2); // Position y au milieu de l'écran
+      tft.fillRect(0,posY_L2 , screenWidth , tft.fontHeight(), TFT_BLACK); //on éfface la valeur précédente
+      tft.printf("%d", nbTimeout);
+      startTime=0; // on réinitialise le chrono
+      refreshScreen=false;
+    }//fin du if refresh
+  }//fin du else
+}//fin du mode3
+
 void loop() {
   // Lecture des données sur la liaison série
   if (USBSerial.available() > 0) { // Vérifie s'il y a des données disponibles à lire sur l'UART0
@@ -340,25 +390,29 @@ void loop() {
       // Analyse de la sous-chaîne à partir de "$START" (m=mode 2 ou 3. Timeout (s))
       int result = sscanf(startPtr, "$START,%d,%lu", &m, &timeoutThreshold);
       //si le paterne match on extrait les données
-      if (result == 2 && timeout==false) {
+      if (result == 2 && timeout==false && m==2) {
         refreshScreen=true;// on arme le refresh (il passe à false si timeout)
         startTime = millis(); // Démarre le chronomètre
         timeoutThreshold=timeoutThreshold*1000; //conversion du timeout en ms
         tft.fillScreen(TFT_BLACK); // on efface tout ce qui était affiché avant
         // on initialise la barre en blanc
         tft.fillRect(progressBarMargin, (screenHeight - progressBarHeight) *2/ 3, screenWidth - progressBarMargin*2, progressBarHeight, TFT_WHITE);
-        if(m==2){
-          mode=2;
-        }
-        if(m==3){
-          mode=3;
-        }
+        mode=2;
+      }//fin du if result==2
+      if (result == 2 && m==3) {
+        refreshScreen=true;// on arme le refresh (il passe à false si timeout)
+        startTime = millis(); // Démarre le chronomètre
+        timeoutThreshold=timeoutThreshold*1000; //conversion du timeout en ms
+        tft.fillScreen(TFT_BLACK); // on efface tout ce qui était affiché avant
+        // on initialise la barre en blanc
+        tft.fillRect(progressBarMargin, (screenHeight - progressBarHeight) *2/ 3, screenWidth - progressBarMargin*2, progressBarHeight, TFT_WHITE);
+        mode=3;
       }//fin du if result==2
     }//fin du if startPtr
 
     //Si c'est juste $START (chrono uniquement)
     if ((strcmp(receivedData, "$START") == 0) && timeout==false){
-          // Démarre le chronomètre lorsque des données sont disponibles
+      // Démarre le chronomètre lorsque des données sont disponibles
       startTime = millis(); //démarre le chrono en récupérant le temps courrant
       mode=1;
     }//fin du if $START
@@ -398,7 +452,7 @@ void loop() {
         if (maxdays==false) {
           displayTime(elapsedTime, days);
         }else{
-          displayTime(0, 49, true);
+          displayTime(0, 49, true); //flag=true
           }//fin du else
       }//fin du if
       break;
@@ -406,7 +460,7 @@ void loop() {
       mode2(timeoutThreshold);
       break;
     case 3:
-      // mode3(timeoutThreshold);//TODO
+      mode3(timeoutThreshold);
       break;
     case 4: //mode 4 : PASSED avec l'affichage du chrono arreté
       //si on n'a pas atteint le nb de jour max affichable on affiche le compteur, sinon on sature à "> 49 jours"
@@ -462,6 +516,7 @@ void loop() {
       mode0();
       startTime=0; // on réinitialise le chrono
       refreshScreen=false;
+      nbTimeout=0;
       break;
   }//fin du switch
 }//fin du loop
